@@ -5,7 +5,9 @@ import { randomUUID } from 'crypto'
 
 export async function transactionsRoutes(app: FastifyInstance) {
     app.get('/', async () => {
-        const transactions = await knex('transactions').select()
+        const transactions = await knex('transactions')
+            .select()
+            .orderBy('created_at', 'desc')
 
         return {
             transactions,
@@ -48,10 +50,21 @@ export async function transactionsRoutes(app: FastifyInstance) {
             request.body,
         )
 
+        let sessionId = request.cookies.sessionId
+
+        if (!sessionId) {
+            sessionId = randomUUID()
+            reply.cookie('sessionId', sessionId, {
+                path: '/',
+                maxAge: 60 * 60 * 24 * 7, // 7 dias
+            })
+        }
+
         await knex('transactions').insert({
             id: randomUUID(),
             title,
             amount: type === 'credit' ? amount : amount * -1,
+            session_id: sessionId,
         })
 
         reply.status(201).send()
